@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { Hono } from "hono";
 import type { Context } from "hono";
 import type { Logger } from "pino";
@@ -15,6 +16,34 @@ export interface AppDependencies {
 
 export function createApp(deps: AppDependencies) {
   const app = new Hono();
+
+  app.use("*", async (c, next) => {
+    const requestId = c.req.header("x-request-id") ?? randomUUID();
+    const startMs = Date.now();
+
+    deps.logger.info(
+      {
+        requestId,
+        method: c.req.method,
+        path: c.req.path,
+      },
+      "Incoming request",
+    );
+
+    await next();
+    c.header("x-request-id", requestId);
+
+    deps.logger.info(
+      {
+        requestId,
+        method: c.req.method,
+        path: c.req.path,
+        status: c.res.status,
+        durationMs: Date.now() - startMs,
+      },
+      "Request completed",
+    );
+  });
 
   app.get("/healthz", (c) => c.json({ ok: true, service: "slack-thread-intercom-bridge" }, 200));
 

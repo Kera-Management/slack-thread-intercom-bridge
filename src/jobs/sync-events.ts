@@ -40,6 +40,16 @@ export function createIntercomSyncHandler(deps: SyncDependencies) {
         return { status: "ignored_non_customer" };
       }
 
+      deps.logger.info(
+        {
+          source: "intercom",
+          eventId: normalized.eventId,
+          conversationId: normalized.conversationId,
+          messageId: normalized.messageId,
+        },
+        "Processing normalized Intercom event",
+      );
+
       const isNew = await deps.store.markEventProcessed("intercom", normalized.idempotencyKey);
       if (!isNew) {
         deps.logger.info({ eventId: normalized.eventId }, "Duplicate Intercom event ignored");
@@ -120,6 +130,17 @@ export function createSlackSyncHandler(deps: SyncDependencies) {
         deps.logger.debug({ source: "slack" }, "Skipping unsupported Slack event");
         return { status: "ignored_unsupported" };
       }
+
+      deps.logger.info(
+        {
+          source: "slack",
+          eventId: normalized.eventId,
+          channelId: normalized.channelId,
+          threadTs: normalized.threadTs,
+          messageTs: normalized.messageTs,
+        },
+        "Processing normalized Slack event",
+      );
 
       const isNew = await deps.store.markEventProcessed("slack", normalized.idempotencyKey);
       if (!isNew) {

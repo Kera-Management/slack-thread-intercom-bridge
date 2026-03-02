@@ -8,7 +8,7 @@ import { InngestPublisher } from "./jobs/publisher.js";
 
 export function createProductionApp() {
   const env = getEnv();
-  const queuePublisher = new InngestPublisher();
+  const queuePublisher = new InngestPublisher(logger);
 
   const inngestHandler = serveInngest({
     client: inngest,
@@ -16,11 +16,23 @@ export function createProductionApp() {
     signingKey: env.INGGEST_SIGNING_KEY,
   });
 
-  return createApp({
+  const app = createApp({
     queuePublisher,
     logger,
     intercomWebhookSecret: env.INTERCOM_WEBHOOK_SECRET,
     slackSigningSecret: env.SLACK_SIGNING_SECRET,
     inngestHandler,
   });
+
+  logger.info(
+    {
+      service: "slack-thread-intercom-bridge",
+      appBaseUrl: env.APP_BASE_URL,
+      slackDefaultChannelId: env.SLACK_DEFAULT_CHANNEL_ID,
+      nodeEnv: env.NODE_ENV,
+    },
+    "Application runtime initialized",
+  );
+
+  return app;
 }
