@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "types": ["node", "vitest/globals"],
+    "outDir": "dist",
+    "rootDir": "."
+  },
+  "include": ["src", "tests", "drizzle.config.ts", "api"],
+  "exclude": ["node_modules", "dist"]
+}
