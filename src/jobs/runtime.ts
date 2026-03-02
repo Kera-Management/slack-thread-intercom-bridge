@@ -18,6 +18,7 @@ const deps = {
   intercomClient,
   logger,
   slackDefaultChannelId: env.SLACK_DEFAULT_CHANNEL_ID,
+  routingMode: env.ROUTING_MODE,
 };
 
 export const intercomSyncHandler = createIntercomSyncHandler(deps);

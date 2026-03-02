@@ -34,4 +34,25 @@ export class IntercomClient implements IntercomApi {
       throw new Error(`Intercom reply failed (${response.status}): ${text}`);
     }
   }
+
+  async getConversation(conversationId: string): Promise<unknown> {
+    const response = await fetch(
+      `https://api.intercom.io/conversations/${encodeURIComponent(conversationId)}`,
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${this.accessToken}`,
+          Accept: "application/json",
+          "Intercom-Version": "2.11",
+        },
+      },
+    );
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`Intercom conversation fetch failed (${response.status}): ${text}`);
+    }
+
+    return response.json();
+  }
 }

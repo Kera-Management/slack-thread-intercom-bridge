@@ -29,6 +29,7 @@ export function createProductionApp() {
       service: "slack-thread-intercom-bridge",
       appBaseUrl: env.APP_BASE_URL,
       slackDefaultChannelId: env.SLACK_DEFAULT_CHANNEL_ID,
+      routingMode: env.ROUTING_MODE,
       nodeEnv: env.NODE_ENV,
     },
     "Application runtime initialized",

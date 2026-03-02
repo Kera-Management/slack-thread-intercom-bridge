@@ -1,7 +1,11 @@
 import { and, eq } from "drizzle-orm";
-import type { BridgeStore, ConversationThreadRecord } from "../lib/contracts.js";
-import type { EventSource, MessageDirection } from "../types/events.js";
-import { conversationThreads, messageLinks, processedEvents } from "./schema.js";
+import type {
+  BridgeStore,
+  ConversationLifecycleRecord,
+  ConversationThreadRecord,
+} from "../lib/contracts.js";
+import type { ActivationReason, BridgeMode, EventSource, MessageDirection } from "../types/events.js";
+import { conversationLifecycle, conversationThreads, messageLinks, processedEvents } from "./schema.js";
 import type { getDb } from "./client.js";
 
 export class PostgresBridgeStore implements BridgeStore {
@@ -52,10 +56,21 @@ export class PostgresBridgeStore implements BridgeStore {
     intercomContactId: string | null;
     slackChannelId: string;
     slackThreadTs: string;
+    bridgeMode: BridgeMode;
+    activationReason: ActivationReason;
+    activatedAt?: Date;
   }): Promise<ConversationThreadRecord> {
     const created = await this.db
       .insert(conversationThreads)
-      .values(input)
+      .values({
+        intercomConversationId: input.intercomConversationId,
+        intercomContactId: input.intercomContactId,
+        slackChannelId: input.slackChannelId,
+        slackThreadTs: input.slackThreadTs,
+        bridgeMode: input.bridgeMode,
+        activationReason: input.activationReason,
+        activatedAt: input.activatedAt ?? new Date(),
+      })
       .onConflictDoNothing({ target: [conversationThreads.intercomConversationId] })
       .returning();
 
@@ -69,6 +84,62 @@ export class PostgresBridgeStore implements BridgeStore {
     }
 
     return existing;
+  }
+
+  async getLifecycleByConversationId(
+    intercomConversationId: string,
+  ): Promise<ConversationLifecycleRecord | null> {
+    const rows = await this.db
+      .select()
+      .from(conversationLifecycle)
+      .where(eq(conversationLifecycle.intercomConversationId, intercomConversationId))
+      .limit(1);
+
+    return rows[0] ?? null;
+  }
+
+  async upsertLifecycle(input: {
+    intercomConversationId: string;
+    lastTopic: string;
+    aiActive?: boolean;
+    humanHandoffDetected?: boolean;
+    lastCustomerMessageId?: string | null;
+    lastCustomerMessageText?: string | null;
+  }): Promise<ConversationLifecycleRecord> {
+    const existing = await this.getLifecycleByConversationId(input.intercomConversationId);
+    const merged = {
+      intercomConversationId: input.intercomConversationId,
+      lastTopic: input.lastTopic,
+      aiActive: input.aiActive ?? existing?.aiActive ?? false,
+      humanHandoffDetected: input.humanHandoffDetected ?? existing?.humanHandoffDetected ?? false,
+      lastCustomerMessageId:
+        input.lastCustomerMessageId !== undefined
+          ? input.lastCustomerMessageId
+          : (existing?.lastCustomerMessageId ?? null),
+      lastCustomerMessageText:
+        input.lastCustomerMessageText !== undefined
+          ? input.lastCustomerMessageText
+          : (existing?.lastCustomerMessageText ?? null),
+      updatedAt: new Date(),
+    };
+
+    const rows = await this.db
+      .insert(conversationLifecycle)
+      .values(merged)
+      .onConflictDoUpdate({
+        target: [conversationLifecycle.intercomConversationId],
+        set: {
+          lastTopic: merged.lastTopic,
+          aiActive: merged.aiActive,
+          humanHandoffDetected: merged.humanHandoffDetected,
+          lastCustomerMessageId: merged.lastCustomerMessageId,
+          lastCustomerMessageText: merged.lastCustomerMessageText,
+          updatedAt: merged.updatedAt,
+        },
+      })
+      .returning();
+
+    return rows[0];
   }
 
   async touchConversationThread(threadId: string): Promise<void> {

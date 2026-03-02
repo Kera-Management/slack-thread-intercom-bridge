@@ -5,8 +5,9 @@ Open-source Intercom-to-Slack bridge that posts customer Intercom conversations 
 ## Features
 
 - Receives Intercom webhooks and posts into a configured Slack channel.
-- Creates one Slack thread per Intercom conversation.
+- Creates one Slack thread per Intercom conversation only after human handoff (escalation).
 - Syncs Slack thread replies back to Intercom as admin comments.
+- Suppresses AI-only conversations from Slack to avoid double customer responses.
 - Verifies Slack and Intercom webhook signatures.
 - Handles duplicate deliveries with idempotency tracking.
 - Uses Inngest for asynchronous processing and retries.
@@ -79,8 +80,16 @@ ngrok http 3000
 ## Required Intercom Settings
 
 - Personal access token with conversation read/write permissions.
-- Webhook configured with secret and conversation events.
+- Webhook configured with secret and these topics:
+  - `conversation.user.created`
+  - `conversation.user.replied`
+  - `conversation.admin.assigned`
+  - `conversation.admin.open.assigned`
+  - `conversation.admin.replied`
+  - `conversation.operator.replied` (if available in your Intercom API version)
 - `INTERCOM_ADMIN_ID` set to teammate/admin ID for outbound Slack replies.
+- `INTERCOM_WEBHOOK_SECRET` set to your Intercom App Client Secret.
+- `ROUTING_MODE=escalation_only` (default) to keep Slack silent until human handoff.
 
 ## Security Notes
 

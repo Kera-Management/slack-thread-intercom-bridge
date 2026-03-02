@@ -11,6 +11,7 @@ const EnvSchema = z.object({
   INTERCOM_ACCESS_TOKEN: z.string().min(1),
   INTERCOM_ADMIN_ID: z.string().min(1),
   INTERCOM_WEBHOOK_SECRET: z.string().min(1),
+  ROUTING_MODE: z.enum(["escalation_only"]).default("escalation_only"),
   LOG_LEVEL: z
     .enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"])
     .default("info"),

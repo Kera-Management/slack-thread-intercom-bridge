@@ -6,8 +6,10 @@
 2. Service verifies `X-Hub-Signature` / `X-Hub-Signature-256`.
 3. Payload is enqueued in Inngest (`intercom/event.received`).
 4. Worker normalizes event and applies idempotency check (`processed_events`).
-5. Worker finds or creates `conversation_threads` mapping.
-6. Worker posts message to Slack root/thread and stores `message_links` audit row.
+5. Worker updates `conversation_lifecycle` state for customer activity, AI activity, and handoff.
+6. In `ROUTING_MODE=escalation_only`, customer messages are ignored until handoff is detected.
+7. On handoff (`conversation.admin.assigned`, `conversation.admin.open.assigned`, or human `conversation.admin.replied`), worker creates `conversation_threads` mapping and posts escalation root message.
+8. After mapping exists, customer follow-ups are posted into the same Slack thread and stored in `message_links`.
 
 ## Flow: Slack -> Intercom
 
@@ -21,6 +23,7 @@
 ## Data Model
 
 - `conversation_threads`: conversation/thread mapping.
+- `conversation_lifecycle`: pre-handoff state, last customer message, AI/handoff flags.
 - `processed_events`: inbound idempotency ledger.
 - `message_links`: audit trail for sent messages.
 

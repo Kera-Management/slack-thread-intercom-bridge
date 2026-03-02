@@ -1,7 +1,9 @@
 import type {
+  ActivationReason,
+  BridgeMode,
   EventSource,
   MessageDirection,
-  NormalizedIntercomEvent,
+  NormalizedIntercomWebhookEvent,
   NormalizedSlackEvent,
 } from "../types/events.js";
 
@@ -11,8 +13,22 @@ export interface ConversationThreadRecord {
   intercomContactId: string | null;
   slackChannelId: string;
   slackThreadTs: string;
+  bridgeMode: BridgeMode;
+  activatedAt: Date;
+  activationReason: ActivationReason;
   firstSeenAt: Date;
   lastSyncedAt: Date;
+}
+
+export interface ConversationLifecycleRecord {
+  id: string;
+  intercomConversationId: string;
+  lastTopic: string;
+  aiActive: boolean;
+  humanHandoffDetected: boolean;
+  lastCustomerMessageId: string | null;
+  lastCustomerMessageText: string | null;
+  updatedAt: Date;
 }
 
 export interface BridgeStore {
@@ -29,7 +45,21 @@ export interface BridgeStore {
     intercomContactId: string | null;
     slackChannelId: string;
     slackThreadTs: string;
+    bridgeMode: BridgeMode;
+    activationReason: ActivationReason;
+    activatedAt?: Date;
   }): Promise<ConversationThreadRecord>;
+  getLifecycleByConversationId(
+    intercomConversationId: string,
+  ): Promise<ConversationLifecycleRecord | null>;
+  upsertLifecycle(input: {
+    intercomConversationId: string;
+    lastTopic: string;
+    aiActive?: boolean;
+    humanHandoffDetected?: boolean;
+    lastCustomerMessageId?: string | null;
+    lastCustomerMessageText?: string | null;
+  }): Promise<ConversationLifecycleRecord>;
   touchConversationThread(threadId: string): Promise<void>;
   createMessageLink(input: {
     intercomConversationId: string;
@@ -53,6 +83,7 @@ export interface IntercomApi {
     conversationId: string;
     messageText: string;
   }): Promise<void>;
+  getConversation(conversationId: string): Promise<unknown>;
 }
 
 export interface QueuePublisher {
@@ -68,4 +99,4 @@ export interface SlackEventHandler {
   handle(payload: unknown): Promise<{ status: string }>;
 }
 
-export type { NormalizedIntercomEvent, NormalizedSlackEvent };
+export type { NormalizedIntercomWebhookEvent, NormalizedSlackEvent };

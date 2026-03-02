@@ -16,8 +16,20 @@
 ## Messages not appearing in thread
 
 - Check `conversation_threads` table for mapping row.
+- In escalation-only mode, no mapping is created until handoff event arrives.
 - Verify `SLACK_DEFAULT_CHANNEL_ID` is correct.
 - Check logs for Slack API errors.
+
+## AI conversations not visible in Slack
+
+- This is expected when `ROUTING_MODE=escalation_only`.
+- Verify Intercom webhook includes handoff topics:
+  - `conversation.admin.assigned`
+  - `conversation.admin.open.assigned`
+  - `conversation.admin.replied`
+- Verify AI topic is enabled for tracking:
+  - `conversation.operator.replied` (if supported)
+- Confirm logs include `Created Slack thread on human handoff` after escalation.
 
 ## Slack replies not reaching Intercom
 

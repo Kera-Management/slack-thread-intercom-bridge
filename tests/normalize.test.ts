@@ -24,6 +24,7 @@ describe("normalizeIntercomWebhook", () => {
     const normalized = normalizeIntercomWebhook(payload);
 
     expect(normalized).toMatchObject({
+      kind: "customer_message",
       eventId: "intercom:ev_123",
       conversationId: "c_1",
       messageId: "m_1",
@@ -33,9 +34,28 @@ describe("normalizeIntercomWebhook", () => {
     });
   });
 
-  it("returns null when no customer-authored message exists", () => {
+  it("normalizes operator reply as ai activity", () => {
     const payload = {
-      id: "ev_124",
+      id: "ev_201",
+      topic: "conversation.operator.replied",
+      data: {
+        item: {
+          id: "c_1",
+        },
+      },
+    };
+
+    expect(normalizeIntercomWebhook(payload)).toMatchObject({
+      kind: "ai_activity",
+      aiSource: "operator_replied",
+      eventId: "intercom:ev_201",
+      conversationId: "c_1",
+    });
+  });
+
+  it("normalizes admin replied with AI metadata as ai activity", () => {
+    const payload = {
+      id: "ev_202",
       topic: "conversation.admin.replied",
       data: {
         item: {
@@ -43,9 +63,9 @@ describe("normalizeIntercomWebhook", () => {
           conversation_parts: {
             conversation_parts: [
               {
-                id: "p_1",
-                author: { type: "admin" },
-                body: "<p>Agent reply</p>",
+                id: "a_1",
+                author: { type: "admin", from_ai_agent: true, is_ai_answer: true },
+                body: "<p>AI response</p>",
               },
             ],
           },
@@ -53,7 +73,93 @@ describe("normalizeIntercomWebhook", () => {
       },
     };
 
-    expect(normalizeIntercomWebhook(payload)).toBeNull();
+    expect(normalizeIntercomWebhook(payload)).toMatchObject({
+      kind: "ai_activity",
+      aiSource: "admin_replied_ai",
+      eventId: "intercom:ev_202",
+      conversationId: "c_1",
+    });
+  });
+
+  it("normalizes human admin replied as handoff", () => {
+    const payload = {
+      id: "ev_203",
+      topic: "conversation.admin.replied",
+      data: {
+        item: {
+          id: "c_1",
+          contacts: { contacts: [{ id: "u_1", name: "Jane" }] },
+          source: {
+            id: "s_1",
+            author: { type: "user" },
+            body: "<p>Need help</p>",
+          },
+          conversation_parts: {
+            conversation_parts: [
+              {
+                id: "a_2",
+                author: { type: "admin", from_ai_agent: false, is_ai_answer: false },
+                body: "<p>I can help</p>",
+              },
+            ],
+          },
+        },
+      },
+    };
+
+    expect(normalizeIntercomWebhook(payload)).toMatchObject({
+      kind: "handoff",
+      handoffReason: "admin_replied",
+      eventId: "intercom:ev_203",
+      conversationId: "c_1",
+      customerName: "Jane",
+    });
+  });
+
+  it("normalizes assignment handoff topics", () => {
+    const assignedPayload = {
+      id: "ev_204",
+      topic: "conversation.admin.assigned",
+      data: {
+        item: {
+          id: "c_1",
+          source: {
+            id: "s_1",
+            author: { type: "lead" },
+            body: "<p>Need help now</p>",
+          },
+        },
+      },
+    };
+
+    const openAssignedPayload = {
+      id: "ev_205",
+      topic: "conversation.admin.open.assigned",
+      data: {
+        item: {
+          id: "c_2",
+          source: {
+            id: "s_2",
+            author: { type: "lead" },
+            body: "<p>Hello</p>",
+          },
+        },
+      },
+    };
+
+    expect(normalizeIntercomWebhook(assignedPayload)).toMatchObject({
+      kind: "handoff",
+      handoffReason: "assigned_to_admin",
+      eventId: "intercom:ev_204",
+      conversationId: "c_1",
+    });
+
+    expect(normalizeIntercomWebhook(openAssignedPayload)).toMatchObject({
+      kind: "handoff",
+      handoffReason: "assigned_to_admin",
+      eventId: "intercom:ev_205",
+      conversationId: "c_2",
+    });
   });
 
   it("prefers latest customer part for conversation.user.replied events", () => {
@@ -91,6 +197,7 @@ describe("normalizeIntercomWebhook", () => {
     const normalized = normalizeIntercomWebhook(payload);
 
     expect(normalized).toMatchObject({
+      kind: "customer_message",
       eventId: "intercom:ev_125",
       conversationId: "c_1",
       messageId: "p_2",
