@@ -12,17 +12,29 @@ export interface SyncDependencies {
   slackDefaultChannelId: string;
 }
 
+function formatSlackQuote(messageText: string): string {
+  return messageText
+    .split(/\r?\n/)
+    .map((line) => (line.trim().length > 0 ? `> ${line}` : ">"))
+    .join("\n");
+}
+
 export function formatSlackRootMessage(input: {
   customerName: string;
   messageText: string;
   conversationId: string;
   conversationLink: string | null;
 }): string {
-  const lines = [`*${input.customerName}* wrote:`, input.messageText, `Intercom conversation: ${input.conversationId}`];
-
-  if (input.conversationLink) {
-    lines.push(input.conversationLink);
-  }
+  const conversationRef = input.conversationLink
+    ? `<${input.conversationLink}|${input.conversationId}>`
+    : `\`${input.conversationId}\``;
+  const lines = [
+    "*New Intercom message*",
+    `*From:* ${input.customerName}`,
+    `*Conversation:* ${conversationRef}`,
+    "*Message:*",
+    formatSlackQuote(input.messageText),
+  ];
 
   return lines.join("\n");
 }

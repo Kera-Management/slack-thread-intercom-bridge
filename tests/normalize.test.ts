@@ -55,6 +55,48 @@ describe("normalizeIntercomWebhook", () => {
 
     expect(normalizeIntercomWebhook(payload)).toBeNull();
   });
+
+  it("prefers latest customer part for conversation.user.replied events", () => {
+    const payload = {
+      id: "ev_125",
+      topic: "conversation.user.replied",
+      data: {
+        item: {
+          id: "c_1",
+          source: {
+            id: "m_1",
+            body: "<p>Initial message</p>",
+            author: { type: "lead" },
+            created_at: "2026-03-02T10:00:00Z",
+          },
+          conversation_parts: {
+            conversation_parts: [
+              {
+                id: "p_1",
+                author: { type: "admin" },
+                body: "<p>Agent reply</p>",
+              },
+              {
+                id: "p_2",
+                author: { type: "lead" },
+                body: "<p>Follow-up question</p>",
+                created_at: "2026-03-02T10:05:00Z",
+              },
+            ],
+          },
+        },
+      },
+    };
+
+    const normalized = normalizeIntercomWebhook(payload);
+
+    expect(normalized).toMatchObject({
+      eventId: "intercom:ev_125",
+      conversationId: "c_1",
+      messageId: "p_2",
+      messageText: "Follow-up question",
+    });
+  });
 });
 
 describe("normalizeSlackEvent", () => {

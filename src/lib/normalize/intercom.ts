@@ -31,6 +31,12 @@ function isCustomerAuthor(authorType: unknown): boolean {
   return text ? CUSTOMER_AUTHOR_TYPES.has(text.toLowerCase()) : false;
 }
 
+interface MessageCandidate {
+  messageText: string;
+  messageId: string | null;
+  occurredAt: string | null;
+}
+
 function deriveConversation(payload: any): any {
   return payload?.data?.item ?? payload?.item ?? payload?.data?.conversation ?? payload?.conversation ?? null;
 }
@@ -78,6 +84,52 @@ function deriveConversationLink(conversation: any): string | null {
   return null;
 }
 
+function getSourceCandidate(conversation: any): MessageCandidate | null {
+  const sourceBody = toStringOrNull(conversation?.source?.body);
+  const sourceAuthorType = toStringOrNull(conversation?.source?.author?.type);
+
+  if (!sourceBody || !isCustomerAuthor(sourceAuthorType)) {
+    return null;
+  }
+
+  const messageText = htmlToText(sourceBody);
+  if (!messageText) {
+    return null;
+  }
+
+  return {
+    messageText,
+    messageId: toStringOrNull(conversation?.source?.id),
+    occurredAt: toStringOrNull(conversation?.source?.created_at),
+  };
+}
+
+function getLatestCustomerPartCandidate(conversation: any): MessageCandidate | null {
+  const parts = conversation?.conversation_parts?.conversation_parts;
+  if (!Array.isArray(parts)) {
+    return null;
+  }
+
+  const part = [...parts].reverse().find((item) => {
+    if (!isCustomerAuthor(item?.author?.type)) {
+      return false;
+    }
+
+    const body = toStringOrNull(item?.body);
+    return Boolean(body && htmlToText(body));
+  });
+
+  if (!part) {
+    return null;
+  }
+
+  return {
+    messageText: htmlToText(String(part.body)),
+    messageId: toStringOrNull(part.id),
+    occurredAt: toStringOrNull(part.created_at),
+  };
+}
+
 export function normalizeIntercomWebhook(payload: unknown): NormalizedIntercomEvent | null {
   const data = payload as any;
   const conversation = deriveConversation(data);
@@ -91,42 +143,23 @@ export function normalizeIntercomWebhook(payload: unknown): NormalizedIntercomEv
   }
 
   const topic = toStringOrNull(data?.topic)?.toLowerCase() ?? "";
-  const sourceBody = toStringOrNull(conversation?.source?.body);
-  const sourceAuthorType = toStringOrNull(conversation?.source?.author?.type);
+  const sourceCandidate = getSourceCandidate(conversation);
+  const partCandidate = getLatestCustomerPartCandidate(conversation);
+  const prefersReplyPart = topic.includes(".user.replied");
+  const prefersCreatedSource = topic.includes(".user.created");
+  const selected = prefersReplyPart
+    ? (partCandidate ?? sourceCandidate)
+    : prefersCreatedSource
+      ? (sourceCandidate ?? partCandidate)
+      : (partCandidate ?? sourceCandidate);
 
-  let messageText: string | null = null;
-  let messageId: string | null = null;
-  let occurredAt: string | null = null;
-
-  if (sourceBody && (topic.includes(".user.") || isCustomerAuthor(sourceAuthorType))) {
-    messageText = htmlToText(sourceBody);
-    messageId = toStringOrNull(conversation?.source?.id);
-    occurredAt = toStringOrNull(conversation?.source?.created_at);
-  }
-
-  if (!messageText) {
-    const parts = conversation?.conversation_parts?.conversation_parts;
-    if (Array.isArray(parts)) {
-      const part = [...parts].reverse().find((item) => {
-        if (!isCustomerAuthor(item?.author?.type)) {
-          return false;
-        }
-
-        const body = toStringOrNull(item?.body);
-        return Boolean(body && htmlToText(body));
-      });
-
-      if (part) {
-        messageText = htmlToText(String(part.body));
-        messageId = toStringOrNull(part.id);
-        occurredAt = toStringOrNull(part.created_at);
-      }
-    }
-  }
-
-  if (!messageText) {
+  if (!selected) {
     return null;
   }
+
+  const messageText = selected.messageText;
+  const messageId = selected.messageId;
+  const occurredAt = selected.occurredAt;
 
   const rawEventId = toStringOrNull(data?.id);
   const timestamp = occurredAt ?? new Date().toISOString();

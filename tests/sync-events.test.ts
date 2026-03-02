@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   createIntercomSyncHandler,
   createSlackSyncHandler,
+  formatSlackRootMessage,
   type SyncDependencies,
 } from "../src/jobs/sync-events.js";
 import type { BridgeStore, ConversationThreadRecord, IntercomApi, SlackApi } from "../src/lib/contracts.js";
@@ -117,6 +118,35 @@ function makeDeps() {
 }
 
 describe("sync handlers", () => {
+  it("formats root Slack message with quote and conversation link", () => {
+    const message = formatSlackRootMessage({
+      customerName: "Visitor",
+      messageText: "testing testing",
+      conversationId: "215473306294334",
+      conversationLink: "https://app.intercom.com/a/inbox/abc/inbox/123/conversation/215473306294334",
+    });
+
+    expect(message).toContain("*New Intercom message*");
+    expect(message).toContain("*From:* Visitor");
+    expect(message).toContain(
+      "*Conversation:* <https://app.intercom.com/a/inbox/abc/inbox/123/conversation/215473306294334|215473306294334>",
+    );
+    expect(message).toContain("*Message:*");
+    expect(message).toContain("> testing testing");
+  });
+
+  it("formats root Slack message with multiline blockquote and fallback id", () => {
+    const message = formatSlackRootMessage({
+      customerName: "Jane",
+      messageText: "Line one\n\nLine three",
+      conversationId: "c_123",
+      conversationLink: null,
+    });
+
+    expect(message).toContain("*Conversation:* `c_123`");
+    expect(message).toContain("> Line one\n>\n> Line three");
+  });
+
   it("creates new Slack thread for first Intercom customer message", async () => {
     const { deps, slackClient } = makeDeps();
     const handler = createIntercomSyncHandler(deps);
