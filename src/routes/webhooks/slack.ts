@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { Context } from "hono";
 import type { Logger } from "pino";
 import type { QueuePublisher } from "../../lib/contracts.js";
+import { getHeader } from "../../lib/http/headers.js";
 import { verifySlackSignature } from "../../lib/security/signatures.js";
 
 export interface SlackWebhookRouteDeps {
@@ -12,10 +13,10 @@ export interface SlackWebhookRouteDeps {
 
 export function createSlackWebhookHandler(deps: SlackWebhookRouteDeps) {
   return async (c: Context) => {
-    const requestId = c.req.header("x-request-id") ?? randomUUID();
+    const requestId = getHeader(c, "x-request-id") ?? randomUUID();
     const rawBody = await c.req.raw.text();
-    const signature = c.req.header("x-slack-signature") ?? null;
-    const timestamp = c.req.header("x-slack-request-timestamp") ?? null;
+    const signature = getHeader(c, "x-slack-signature");
+    const timestamp = getHeader(c, "x-slack-request-timestamp");
 
     const verified = verifySlackSignature({
       rawBody,

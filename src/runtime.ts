@@ -1,5 +1,5 @@
 import { serve as serveInngest } from "inngest/hono";
-import { createApp } from "./app.js";
+import { createApp } from "./app-factory.js";
 import { getEnv } from "./config/env.js";
 import { logger } from "./config/logger.js";
 import { inngestFunctions } from "./jobs/functions.js";

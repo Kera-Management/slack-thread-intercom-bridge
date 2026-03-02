@@ -1,7 +1,7 @@
 import { createHmac } from "node:crypto";
 import pino from "pino";
 import { describe, expect, it } from "vitest";
-import { createApp } from "../src/app.js";
+import { createApp } from "../src/app-factory.js";
 import type { QueuePublisher } from "../src/lib/contracts.js";
 
 class FakeQueuePublisher implements QueuePublisher {

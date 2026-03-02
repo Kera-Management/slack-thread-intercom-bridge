@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { Context } from "hono";
 import type { Logger } from "pino";
 import type { QueuePublisher } from "../../lib/contracts.js";
+import { getHeader } from "../../lib/http/headers.js";
 import { verifyIntercomSignature } from "../../lib/security/signatures.js";
 
 export interface IntercomWebhookRouteDeps {
@@ -12,10 +13,10 @@ export interface IntercomWebhookRouteDeps {
 
 export function createIntercomWebhookHandler(deps: IntercomWebhookRouteDeps) {
   return async (c: Context) => {
-    const requestId = c.req.header("x-request-id") ?? randomUUID();
+    const requestId = getHeader(c, "x-request-id") ?? randomUUID();
     const rawBody = await c.req.raw.text();
-    const signature = c.req.header("x-hub-signature") ?? null;
-    const signature256 = c.req.header("x-hub-signature-256") ?? null;
+    const signature = getHeader(c, "x-hub-signature");
+    const signature256 = getHeader(c, "x-hub-signature-256");
 
     const verified = verifyIntercomSignature({
       rawBody,
